@@ -1,0 +1,209 @@
+{
+  "metadata" : {
+    "name" : "Predict",
+    "user_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "auto_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "language_info" : {
+      "name" : "scala",
+      "file_extension" : "scala",
+      "codemirror_mode" : "text/x-scala"
+    },
+    "trusted" : true,
+    "customLocalRepo" : "/home/automaton/.ivy2",
+    "customRepos" : null,
+    "customDeps" : [ "com.datastax.spark:spark-cassandra-connector_2.10:1.4.0-M3", "- org.apache.spark % spark-core_2.10 % _", "com.databricks:spark-csv_2.10:1.2.0", "- org.apache.hadoop % _ % _", "org.twitter4j:twitter4j-core:3.0.3", "com.google.code.gson:gson:2.3", "org.apache.spark:spark-streaming-twitter_2.10:1.4.0" ],
+    "customImports" : null,
+    "customArgs" : null,
+    "customSparkConf" : {
+      "spark.cassandra.connection.host" : "172.31.21.172",
+      "spark.master" : "spark://172.31.21.172:7077",
+      "spark.executor.cores" : "2",
+      "spark.executor.memory" : "4G",
+      "spark.cores.max" : "5",
+      "spark.eventLog.enabled" : "true",
+      "spark.eventLog.dir" : "logs/spark"
+    }
+  },
+  "cells" : [ {
+    "metadata" : { },
+    "cell_type" : "markdown",
+    "source" : "### Setup the SQL Context and necessary imports"
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val sqlContext = new org.apache.spark.sql.SQLContext(sparkContext)\nimport sqlContext.implicits._\nimport org.apache.spark.sql.functions._\nimport com.datastax.spark.connector.cql.CassandraConnector\n\nimport com.datastax.spark.connector._\nimport com.datastax.spark.connector.streaming._\n\nimport java.util.concurrent.atomic.AtomicInteger\n\nimport com.google.gson.Gson\nimport org.apache.spark.streaming.twitter.TwitterUtils\nimport org.apache.spark.streaming.{Seconds, StreamingContext}\nimport org.apache.spark.{SparkConf, SparkContext}\n\nimport com.datastax.spark.connector._\n",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "sqlContext: org.apache.spark.sql.SQLContext = org.apache.spark.sql.SQLContext@7372362b\nimport sqlContext.implicits._\nimport org.apache.spark.sql.functions._\nimport com.datastax.spark.connector.cql.CassandraConnector\nimport com.datastax.spark.connector._\nimport com.datastax.spark.connector.streaming._\nimport java.util.concurrent.atomic.AtomicInteger\nimport com.google.gson.Gson\nimport org.apache.spark.streaming.twitter.TwitterUtils\nimport org.apache.spark.streaming.{Seconds, StreamingContext}\nimport org.apache.spark.{SparkConf, SparkContext}\nimport com.datastax.spark.connector._\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 1
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import org.apache.spark.mllib.linalg.{Vector, SparseVector}\nimport org.apache.spark.mllib.feature.HashingTF\n\nval numFeatures = 1000",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "import org.apache.spark.mllib.linalg.{Vector, SparseVector}\nimport org.apache.spark.mllib.feature.HashingTF\nnumFeatures: Int = 1000\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "1000"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 2
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val tf = new HashingTF(numFeatures)\n\n/**\n   * Create feature vectors by turning each tweet into bigrams of characters (an n-gram model)\n   * and then hashing those to a length-1000 feature vector that we can pass to MLlib.\n   * This is a common way to decrease the number of features in a model while still\n   * getting excellent accuracy (otherwise every pair of Unicode characters would\n   * potentially be a feature).\n   */\ndef featurize(s: String): Vector = {\n  tf.transform(s.sliding(2).toSeq)\n}",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "tf: org.apache.spark.mllib.feature.HashingTF = org.apache.spark.mllib.feature.HashingTF@68dee6de\nfeaturize: (s: String)org.apache.spark.mllib.linalg.Vector\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 3
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import scala.collection.JavaConverters._\n\nimport org.apache.spark.mllib.linalg.{Vector, Vectors}\n\n//SomeColumns(\"vector_id\",\"size\", \"indices\",\"values\")\nval clusterVectorsDF = sqlContext.read.format(\"org.apache.spark.sql.cassandra\")\n  .options(Map(\"keyspace\" -> \"tweet_db\", \"table\" -> \"cluster_vectors\"))\n  .load()\n\n val clusterCenters: Array[Vector] = clusterVectorsDF.collect().map(row =>\n      Vectors.parse(row.getString(1)))\n\n",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "import scala.collection.JavaConverters._\nimport org.apache.spark.mllib.linalg.{Vector, Vectors}\nclusterVectorsDF: org.apache.spark.sql.DataFrame = [vector_id: int, values: string]\nclusterCenters: Array[org.apache.spark.mllib.linalg.Vector] = Array([0.033720287451630734,0.0179657269209508,0.08540630182421227,0.017689331122166942,0.01077943615257048,0.006080707573244887,0.01077943615257048,0.006909894969596462,0.05223880597014925,0.010503040353786621,0.009673852957435046,0.010226644555002764,0.02155887230514096,0.010503040353786621,0.011332227750138197,0.06605859590934217,0.033720287451630734,0.02211166390270868,0.008844665561083471,0.022664455500276393,0.029850746268656716,0.01658374792703151,0.021282476506357104,0.01105583195135434,0.10613598673300165,0.01824212271973466,0.0174129353233..."
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "<div class=\"container-fluid\"><div><div class=\"col-md-12\"><div>\n      <script data-this=\"{&quot;dataId&quot;:&quot;anond0dd26b8ba10b2f79de4d9ac0b0e5010&quot;,&quot;dataInit&quot;:[{&quot;values&quot;:&quot;[D@165b5fa7&quot;},{&quot;values&quot;:&quot;[D@d9146a9&quot;},{&quot;values&quot;:&quot;[D@14b2c052&quot;},{&quot;values&quot;:&quot;[D@ed8b066&quot;},{&quot;values&quot;:&quot;[D@42b2607d&quot;},{&quot;values&quot;:&quot;[D@4591c28c&quot;},{&quot;values&quot;:&quot;[D@47233a3c&quot;},{&quot;values&quot;:&quot;[D@c33f93e&quot;},{&quot;values&quot;:&quot;[D@5d53d14d&quot;},{&quot;values&quot;:&quot;[D@169dfdc9&quot;}],&quot;genId&quot;:&quot;1423474003&quot;}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/req(['../javascripts/notebook/playground','../javascripts/notebook/magic/tableChart'], \n      function(playground, _magictableChart) {\n        // data ==> data-this (in observable.js's scopedEval) ==> this in JS => { dataId, dataInit, ... }\n        // this ==> scope (in observable.js's scopedEval) ==> this.parentElement ==> div.container below (toHtml)\n\n        playground.call(data,\n                        this\n                        ,\n                        {\n    \"f\": _magictableChart,\n    \"o\": {\"headers\":[\"values\"],\"nrow\":10,\"shown\":10,\"width\":600,\"height\":400}\n  }\n  \n                        \n                        \n                      );\n      }\n    );/*]]>*/</script>\n    </div></div></div></div>"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 4
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "def $(s:String) = sys.env(s)\nSystem.setProperty(\"twitter4j.oauth.consumerKey\", $(\"TWITTER_CONSUMER_KEY\"))\nSystem.setProperty(\"twitter4j.oauth.consumerSecret\", $(\"TWITTER_CONSUMER_SECRET\"))\nSystem.setProperty(\"twitter4j.oauth.accessToken\", $(\"TWITTER_ACCESS_TOKEN\"))\nSystem.setProperty(\"twitter4j.oauth.accessTokenSecret\", $(\"TWITTER_ACCESS_TOKEN_SECRET\"))\n\"twitter settings done!\"",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "$: (s: String)String\nres2: String = twitter settings done!\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "twitter settings done!"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 5
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val filters = Array(\"spark\", \"scala\", \"music\")\nval ssc = new StreamingContext(sparkContext, Seconds(2))\nval twitterStream = TwitterUtils.createStream(ssc, None)",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "filters: Array[String] = Array(spark, scala, music)\nssc: org.apache.spark.streaming.StreamingContext = org.apache.spark.streaming.StreamingContext@b6b3602\ntwitterStream: org.apache.spark.streaming.dstream.ReceiverInputDStream[twitter4j.Status] = org.apache.spark.streaming.twitter.TwitterInputDStream@3a4cbb55\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "org.apache.spark.streaming.twitter.TwitterInputDStream@3a4cbb55"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 6
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : " val statuses = twitterStream.map(tweet => tweet.getText)",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "statuses: org.apache.spark.streaming.dstream.DStream[String] = org.apache.spark.streaming.dstream.MappedDStream@d9cda80\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "org.apache.spark.streaming.dstream.MappedDStream@d9cda80"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 7
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import org.apache.spark.mllib.clustering.KMeansModel\n\nval model = new KMeansModel(clusterCenters)\nval clusterNumber = 0\n\nval filteredTweets = statuses\n    .filter(t => model.predict(featurize(t)) == clusterNumber)\n\nfilteredTweets.print()",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "ssc.start()",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "//ssc.stop()",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "",
+    "outputs" : [ ]
+  } ],
+  "nbformat" : 4
+}

@@ -1,0 +1,271 @@
+{
+  "metadata" : {
+    "name" : "ExamineAndTrain",
+    "user_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "auto_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "language_info" : {
+      "name" : "scala",
+      "file_extension" : "scala",
+      "codemirror_mode" : "text/x-scala"
+    },
+    "trusted" : true,
+    "customLocalRepo" : "/home/automaton/.ivy2",
+    "customRepos" : null,
+    "customDeps" : [ "com.datastax.spark:spark-cassandra-connector_2.10:1.4.0-M3", "- org.apache.spark % spark-core_2.10 % _", "com.databricks:spark-csv_2.10:1.2.0", "- org.apache.hadoop % _ % _", "org.twitter4j:twitter4j-core:3.0.3", "com.google.code.gson:gson:2.3", "org.apache.spark:spark-streaming-twitter_2.10:1.4.0" ],
+    "customImports" : null,
+    "customArgs" : null,
+    "customSparkConf" : {
+      "spark.cassandra.connection.host" : "172.31.21.172",
+      "spark.master" : "spark://172.31.21.172:7077",
+      "spark.executor.cores" : "2",
+      "spark.executor.memory" : "4G",
+      "spark.cores.max" : "5",
+      "spark.eventLog.enabled" : "true",
+      "spark.eventLog.dir" : "logs/spark"
+    }
+  },
+  "cells" : [ {
+    "metadata" : { },
+    "cell_type" : "markdown",
+    "source" : "### Setup the SQL Context and necessary imports"
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val sqlContext = new org.apache.spark.sql.SQLContext(sparkContext)\nimport sqlContext.implicits._\nimport org.apache.spark.sql.functions._\nimport com.datastax.spark.connector.cql.CassandraConnector\n\nimport com.datastax.spark.connector._\nimport com.datastax.spark.connector.streaming._\n\nimport java.util.concurrent.atomic.AtomicInteger\n\nimport com.google.gson.Gson\nimport org.apache.spark.streaming.twitter.TwitterUtils\nimport org.apache.spark.streaming.{Seconds, StreamingContext}\nimport org.apache.spark.{SparkConf, SparkContext}\n\nimport com.datastax.spark.connector._\n",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "sqlContext: org.apache.spark.sql.SQLContext = org.apache.spark.sql.SQLContext@344a1673\nimport sqlContext.implicits._\nimport org.apache.spark.sql.functions._\nimport com.datastax.spark.connector.cql.CassandraConnector\nimport com.datastax.spark.connector._\nimport com.datastax.spark.connector.streaming._\nimport java.util.concurrent.atomic.AtomicInteger\nimport com.google.gson.Gson\nimport org.apache.spark.streaming.twitter.TwitterUtils\nimport org.apache.spark.streaming.{Seconds, StreamingContext}\nimport org.apache.spark.{SparkConf, SparkContext}\nimport com.datastax.spark.connector._\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 1
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val tweets = sc.cassandraTable(\"tweet_db\", \"raw_tweets\")\ntweets.take(5)",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "tweets: com.datastax.spark.connector.rdd.CassandraTableScanRDD[com.datastax.spark.connector.CassandraRow] = CassandraTableScanRDD[0] at RDD at CassandraRDD.scala:15\nres2: Array[com.datastax.spark.connector.CassandraRow] = Array(CassandraRow{tweet_id: 646146871547658240, raw_tweet: Saya salah satunya,, kwkw\"@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\"}, CassandraRow{tweet_id: 646146506622390272, raw_tweet: First episode of Wabbit was alright. First short suffered from being very predictable though}, CassandraRow{tweet_id: 646146657617219584, raw_tweet: RT @Gwonam: Hello Twitter! #myfirstTweet}, CassandraRow{tweet_id: 646146175293366272, raw_tweet: RT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을..."
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "<div>\n      <script data-this=\"{&quot;dataId&quot;:&quot;anon0f6c836e0b07c3a8b5064a0867f320f1&quot;,&quot;dataInit&quot;:[{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146871547658240, Saya salah satunya,, kwkw\\&quot;@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\\&quot;)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146506622390272, First episode of Wabbit was alright. First short suffered from being very predictable though)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146657617219584, RT @Gwonam: Hello Twitter! #myfirstTweet)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146175293366272, RT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을 다하겠습니다. http://t.co/yAA2qNtgq3)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146389211136000, 沢尻エリカすっぴん画像( ´ ▽ ` )ﾉ http://t.co/HtmRq8eVc2)&quot;}],&quot;genId&quot;:&quot;1171054025&quot;}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/req(['../javascripts/notebook/playground','../javascripts/notebook/magic/tabs'], \n      function(playground, _magictabs) {\n        // data ==> data-this (in observable.js's scopedEval) ==> this in JS => { dataId, dataInit, ... }\n        // this ==> scope (in observable.js's scopedEval) ==> this.parentElement ==> div.container below (toHtml)\n\n        playground.call(data,\n                        this\n                        ,\n                        {\n    \"f\": _magictabs,\n    \"o\": {}\n  }\n  \n                        \n                        \n                      );\n      }\n    );/*]]>*/</script>\n    <div>\n        <ul class=\"nav nav-tabs\" id=\"ul1171054025\"><li>\n              <a href=\"#tab1171054025-0\"><i class=\"fa fa-table\"/></a>\n            </li><li>\n              <a href=\"#tab1171054025-1\"><i class=\"fa fa-pie-chart\"/></a>\n            </li></ul>\n\n        <div class=\"tab-content\" id=\"tab1171054025\"><div class=\"tab-pane\" id=\"tab1171054025-0\">\n            <div>\n      <script data-this=\"{&quot;dataId&quot;:&quot;anon69dae22fdbedb21efdd22d0e308d52ee&quot;,&quot;dataInit&quot;:[{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146871547658240, Saya salah satunya,, kwkw\\&quot;@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\\&quot;)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146506622390272, First episode of Wabbit was alright. First short suffered from being very predictable though)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146657617219584, RT @Gwonam: Hello Twitter! #myfirstTweet)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146175293366272, RT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을 다하겠습니다. http://t.co/yAA2qNtgq3)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146389211136000, 沢尻エリカすっぴん画像( ´ ▽ ` )ﾉ http://t.co/HtmRq8eVc2)&quot;}],&quot;genId&quot;:&quot;1806181776&quot;}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/req(['../javascripts/notebook/playground','../javascripts/notebook/magic/tableChart'], \n      function(playground, _magictableChart) {\n        // data ==> data-this (in observable.js's scopedEval) ==> this in JS => { dataId, dataInit, ... }\n        // this ==> scope (in observable.js's scopedEval) ==> this.parentElement ==> div.container below (toHtml)\n\n        playground.call(data,\n                        this\n                        ,\n                        {\n    \"f\": _magictableChart,\n    \"o\": {\"headers\":[\"X\",\"Y\"],\"nrow\":5,\"shown\":5,\"width\":600,\"height\":400}\n  }\n  \n                        \n                        \n                      );\n      }\n    );/*]]>*/</script>\n    </div>\n            </div><div class=\"tab-pane\" id=\"tab1171054025-1\">\n            <div>\n      <script data-this=\"{&quot;dataId&quot;:&quot;anonf75fda2c76b72d17d9a8378a60686872&quot;,&quot;dataInit&quot;:[{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146871547658240, Saya salah satunya,, kwkw\\&quot;@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\\&quot;)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146506622390272, First episode of Wabbit was alright. First short suffered from being very predictable though)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146657617219584, RT @Gwonam: Hello Twitter! #myfirstTweet)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146175293366272, RT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을 다하겠습니다. http://t.co/yAA2qNtgq3)&quot;},{&quot;X&quot;:&quot;WrappedArray(tweet_id, raw_tweet)&quot;,&quot;Y&quot;:&quot;WrappedArray(646146389211136000, 沢尻エリカすっぴん画像( ´ ▽ ` )ﾉ http://t.co/HtmRq8eVc2)&quot;}],&quot;genId&quot;:&quot;901201008&quot;}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/req(['../javascripts/notebook/playground','../javascripts/notebook/magic/pieChart'], \n      function(playground, _magicpieChart) {\n        // data ==> data-this (in observable.js's scopedEval) ==> this in JS => { dataId, dataInit, ... }\n        // this ==> scope (in observable.js's scopedEval) ==> this.parentElement ==> div.container below (toHtml)\n\n        playground.call(data,\n                        this\n                        ,\n                        {\n    \"f\": _magicpieChart,\n    \"o\": {\"series\":\"X\",\"p\":\"Y\",\"width\":600,\"height\":400}\n  }\n  \n                        \n                        \n                      );\n      }\n    );/*]]>*/</script>\n    </div>\n            </div></div>\n      </div></div>"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 2
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : ":markdown\nThere are **${tweets.count}** tweets",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "res3: String = There are **9605** tweets\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/markdown" : "There are **9605** tweets"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 3
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val tweetTable = sqlContext.read.format(\"org.apache.spark.sql.cassandra\")\n                    .options(Map( \"keyspace\" -> \"tweet_db\", \"table\" -> \"raw_tweets\"))\n                    .load()\n\ntweetTable.registerTempTable(\"tweetTable\")\n\ntweetTable",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "tweetTable: org.apache.spark.sql.DataFrame = [tweet_id: bigint, raw_tweet: string]\nres4: org.apache.spark.sql.DataFrame = [tweet_id: bigint, raw_tweet: string]\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "<div class=\"df-canvas\">\n      <script data-this=\"{&quot;dataId&quot;:&quot;anon1d4e3a6ee1ea2d3d34593abd871e86cb&quot;,&quot;partitionIndexId&quot;:&quot;anona6d912d398a909fd89e3eb4346735726&quot;,&quot;numPartitions&quot;:385,&quot;dfSchema&quot;:{&quot;type&quot;:&quot;struct&quot;,&quot;fields&quot;:[{&quot;name&quot;:&quot;tweet_id&quot;,&quot;type&quot;:&quot;long&quot;,&quot;nullable&quot;:true,&quot;metadata&quot;:{}},{&quot;name&quot;:&quot;raw_tweet&quot;,&quot;type&quot;:&quot;string&quot;,&quot;nullable&quot;:true,&quot;metadata&quot;:{}}]}}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/req(['../javascripts/notebook/dataframe','../javascripts/notebook/consoleDir'], \n      function(dataframe, extension) {\n        dataframe.call(data, this, extension);\n      }\n    );/*]]>*/</script>\n      <link rel=\"stylesheet\" href=\"/assets/stylesheets/ipython/css/dataframe.css\" type=\"text/css\"/>\n    </div>"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 4
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "tweetTable.printSchema()",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "root\n |-- tweet_id: long (nullable = true)\n |-- raw_tweet: string (nullable = true)\n\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 5
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val texts = tweetTable.rdd.map(row => row.getString(1))\ntexts.take(5)",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "texts: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[9] at map at <console>:72\nres6: Array[String] = Array(Saya salah satunya,, kwkw\"@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\", First episode of Wabbit was alright. First short suffered from being very predictable though, RT @Gwonam: Hello Twitter! #myfirstTweet, RT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을 다하겠습니다. http://t.co/yAA2qNtgq3, 沢尻エリカすっぴん画像( ´ ▽ ` )ﾉ http://t.co/HtmRq8eVc2)\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "<div class=\"container-fluid\"><div><div class=\"col-md-12\"><div>\n      <script data-this=\"{&quot;dataId&quot;:&quot;anon3ccbd1a51a0cbbea70a21950d516486c&quot;,&quot;dataInit&quot;:[{&quot;string value&quot;:&quot;Saya salah satunya,, kwkw\\&quot;@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\\&quot;&quot;},{&quot;string value&quot;:&quot;First episode of Wabbit was alright. First short suffered from being very predictable though&quot;},{&quot;string value&quot;:&quot;RT @Gwonam: Hello Twitter! #myfirstTweet&quot;},{&quot;string value&quot;:&quot;RT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을 다하겠습니다. http://t.co/yAA2qNtgq3&quot;},{&quot;string value&quot;:&quot;沢尻エリカすっぴん画像( ´ ▽ ` )ﾉ http://t.co/HtmRq8eVc2&quot;}],&quot;genId&quot;:&quot;1207416592&quot;}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/req(['../javascripts/notebook/playground','../javascripts/notebook/magic/tableChart'], \n      function(playground, _magictableChart) {\n        // data ==> data-this (in observable.js's scopedEval) ==> this in JS => { dataId, dataInit, ... }\n        // this ==> scope (in observable.js's scopedEval) ==> this.parentElement ==> div.container below (toHtml)\n\n        playground.call(data,\n                        this\n                        ,\n                        {\n    \"f\": _magictableChart,\n    \"o\": {\"headers\":[\"string value\"],\"nrow\":5,\"shown\":5,\"width\":600,\"height\":400}\n  }\n  \n                        \n                        \n                      );\n      }\n    );/*]]>*/</script>\n    </div></div></div></div>"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 6
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import org.apache.spark.mllib.linalg.{Vector, SparseVector}\nimport org.apache.spark.mllib.feature.HashingTF\n\nval numFeatures = 1000\nval tf = new HashingTF(numFeatures)\n\n/**\n   * Create feature vectors by turning each tweet into bigrams of characters (an n-gram model)\n   * and then hashing those to a length-1000 feature vector that we can pass to MLlib.\n   * This is a common way to decrease the number of features in a model while still\n   * getting excellent accuracy (otherwise every pair of Unicode characters would\n   * potentially be a feature).\n   */\n  def featurize(s: String): Vector = {\n    tf.transform(s.sliding(2).toSeq)\n  }",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "import org.apache.spark.mllib.linalg.{Vector, SparseVector}\nimport org.apache.spark.mllib.feature.HashingTF\nnumFeatures: Int = 1000\ntf: org.apache.spark.mllib.feature.HashingTF = org.apache.spark.mllib.feature.HashingTF@4dddd83a\nfeaturize: (s: String)org.apache.spark.mllib.linalg.Vector\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 7
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val vectors = texts.map(featurize).cache()\nvectors.count() \nvectors.take(10)",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "vectors: org.apache.spark.rdd.RDD[org.apache.spark.mllib.linalg.Vector] = MapPartitionsRDD[10] at map at <console>:82\nres7: Array[org.apache.spark.mllib.linalg.Vector] = Array((1000,[39,50,51,53,65,72,89,91,97,99,100,101,103,104,107,108,110,111,112,113,114,115,116,117,118,121,122,123,128,174,201,225,230,231,234,240,241,245,246,247,256,287,290,294,305,321,349,352,365,371,396,408,436,445,453,458,465,476,480,484,507,513,520,526,527,531,555,566,569,573,581,597,628,631,644,662,666,670,684,693,697,713,717,723,735,737,742,743,794,796,830,839,848,852],[4.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,2.0,1.0,4.0,3.0,2.0,1.0,3.0,1.0,1.0,1.0,2.0,1.0,3.0,1.0,1.0,1.0,1.0,1.0,2.0,1.0,3.0,1.0,1.0,1.0,1.0,1.0,3.0,1.0,1.0,2.0,2.0,1.0,1.0,1.0,1.0,1.0,1.0,3.0,1.0,1.0,1.0,2.0,1.0,1.0,1.0,1.0,1.0,2.0,1.0,1.0,3...."
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "<div class=\"container-fluid\"><div><div class=\"col-md-12\"><div>\n      <script data-this=\"{&quot;dataId&quot;:&quot;anon3d1ed06165dbeae1e68a19b6517e39a3&quot;,&quot;dataInit&quot;:[{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@55709259&quot;,&quot;values&quot;:&quot;[D@70189528&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@6d58a1b1&quot;,&quot;values&quot;:&quot;[D@131c3716&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@42af8d76&quot;,&quot;values&quot;:&quot;[D@762ae1de&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@5ed79383&quot;,&quot;values&quot;:&quot;[D@2c81abc8&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@127b5713&quot;,&quot;values&quot;:&quot;[D@337e6093&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@5157a6f4&quot;,&quot;values&quot;:&quot;[D@70a998fd&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@38a29a34&quot;,&quot;values&quot;:&quot;[D@78180f4b&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@149466ba&quot;,&quot;values&quot;:&quot;[D@28c66aa5&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@41936b3&quot;,&quot;values&quot;:&quot;[D@3cc3032c&quot;},{&quot;size&quot;:1000,&quot;indices&quot;:&quot;[I@b5503b8&quot;,&quot;values&quot;:&quot;[D@105dc335&quot;}],&quot;genId&quot;:&quot;1473262181&quot;}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/req(['../javascripts/notebook/playground','../javascripts/notebook/magic/tableChart'], \n      function(playground, _magictableChart) {\n        // data ==> data-this (in observable.js's scopedEval) ==> this in JS => { dataId, dataInit, ... }\n        // this ==> scope (in observable.js's scopedEval) ==> this.parentElement ==> div.container below (toHtml)\n\n        playground.call(data,\n                        this\n                        ,\n                        {\n    \"f\": _magictableChart,\n    \"o\": {\"headers\":[\"size\",\"indices\",\"values\"],\"nrow\":10,\"shown\":10,\"width\":600,\"height\":400}\n  }\n  \n                        \n                        \n                      );\n      }\n    );/*]]>*/</script>\n    </div></div></div></div>"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 8
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import org.apache.spark.mllib.clustering.KMeans\n\nval numClusters = 10\nval numIterations = 20\n\nval model = KMeans.train(vectors, numClusters, numIterations)\nval clusterRDD = sparkContext.makeRDD(model.clusterCenters, numClusters)",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "import org.apache.spark.mllib.clustering.KMeans\nnumClusters: Int = 10\nnumIterations: Int = 20\nmodel: org.apache.spark.mllib.clustering.KMeansModel = org.apache.spark.mllib.clustering.KMeansModel@2449031e\nclusterRDD: org.apache.spark.rdd.RDD[org.apache.spark.mllib.linalg.Vector] = ParallelCollectionRDD[78] at makeRDD at <console>:90\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "ParallelCollectionRDD[78] at makeRDD at &lt;console&gt;:90"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 9
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import org.apache.spark.mllib.linalg.DenseVector\nimport java.util.concurrent.atomic.AtomicInteger\n                                      \nval clusterRDD: RDD[Vector] = sc.makeRDD(model.clusterCenters, numClusters)\n\n\n\n\nval clusterRDDPair = clusterRDD.map(vector => {\n  vector.toDense.toArray.toList\n}).zipWithIndex\n\nclusterRDDPair.saveToCassandra(\"tweet_db\", \"cluster_vectors\", SomeColumns(\"values\", \"vector_id\"))\n\nclusterRDDPair.count",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "import org.apache.spark.mllib.linalg.DenseVector\nimport java.util.concurrent.atomic.AtomicInteger\nclusterRDD: org.apache.spark.rdd.RDD[org.apache.spark.mllib.linalg.Vector] = ParallelCollectionRDD[92] at makeRDD at <console>:106\nclusterRDDPair: org.apache.spark.rdd.RDD[(List[Double], Long)] = ZippedWithIndexRDD[94] at zipWithIndex at <console>:113\nres12: Long = 10\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "10"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 14
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val some_tweets = texts.take(10)\n\nfor (i <- 0 until numClusters) {\n      println(s\"\\nCLUSTER $i:\")\n      some_tweets.foreach { t =>\n        if (model.predict(featurize(t)) == i) {\n          println(t)\n        }\n      }\n    }\n\n",
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "\nCLUSTER 0:\nRT @Gwonam: Hello Twitter! #myfirstTweet\nI wish people used the term \"jackass\" more often\n\nCLUSTER 1:\n\nCLUSTER 2:\n\nCLUSTER 3:\nSaya salah satunya,, kwkw\"@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\"\nPelo amor de Deus, não aguento mais esse lugar 😭😭😭😭\nRT @Styles_H4rry_: @L4RRYPETER0S @Solos_HelpDMs de nada ... #EMABiggestFans1D\n\nCLUSTER 4:\n\nCLUSTER 5:\nFirst episode of Wabbit was alright. First short suffered from being very predictable though\n\nCLUSTER 6:\nRT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을 다하겠습니다. http://t.co/yAA2qNtgq3\n沢尻エリカすっぴん画像( ´ ▽ ` )ﾉ http://t.co/HtmRq8eVc2\nhttp://t.co/ASDTUMl4Ci\n【中古】 低インシュリンダイエット 好きなだけ食べられて、ラクラク痩せる / 荒木 順子 / ゴマブックス [単行本]【メール便送料無料】【あす楽対応】 http://t.co/b0V61eJfr9 http://t.co/ccisB4zYav\n\nCLUSTER 7:\n\nCLUSTER 8:\n\nCLUSTER 9:\nsome_tweets: Array[String] = Array(Saya salah satunya,, kwkw\"@tetyedeswita: Pecinta paling tulus tak pernah menuntut agar orang yang ia cintai segera memahami perasaannya. :)\", First episode of Wabbit was alright. First short suffered from being very predictable though, RT @Gwonam: Hello Twitter! #myfirstTweet, RT @jrjyp: Coming Soon. 그리고 오늘 부족한 저의 생일을 축하해주신 모든 분들. 정말 감사합니다. 언제나 최선을 다하겠습니다. http://t.co/yAA2qNtgq3, 沢尻エリカすっぴん画像( ´ ▽ ` )ﾉ http://t.co/HtmRq8eVc2, Pelo amor de Deus, não aguento mais esse lugar 😭😭😭😭, http://t.co/ASDTUMl4Ci, RT @Styles_H4rry_: @L4RRYPETER0S @Solos_HelpDMs de nada ... #EMABiggestFans1D, I wish people used the term \"jackass\" more often, 【中古】 低インシュリンダイエット 好きなだけ食べられて、ラクラク痩せる / 荒木 順子 / ゴマブックス [単行本]【メール便送料無料】【あす楽対応】 http://t.co/b0V61eJfr9 http://t.co/ccisB4zYav)\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 11
+    } ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : true
+    },
+    "cell_type" : "code",
+    "source" : "vector.take(0)",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : true
+    },
+    "cell_type" : "code",
+    "source" : "",
+    "outputs" : [ ]
+  } ],
+  "nbformat" : 4
+}

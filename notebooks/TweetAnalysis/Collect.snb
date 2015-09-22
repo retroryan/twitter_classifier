@@ -1,0 +1,123 @@
+{
+  "metadata" : {
+    "name" : "TweetAnalysisCollect",
+    "user_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "auto_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "language_info" : {
+      "name" : "scala",
+      "file_extension" : "scala",
+      "codemirror_mode" : "text/x-scala"
+    },
+    "trusted" : true,
+    "customLocalRepo" : "/home/automaton/.ivy2",
+    "customRepos" : null,
+    "customDeps" : [ "com.datastax.spark:spark-cassandra-connector_2.10:1.4.0-M3", "- org.apache.spark % spark-core_2.10 % _", "com.databricks:spark-csv_2.10:1.2.0", "- org.apache.hadoop % _ % _", "org.twitter4j:twitter4j-core:3.0.3", "com.google.code.gson:gson:2.3", "org.apache.spark:spark-streaming-twitter_2.10:1.4.0" ],
+    "customImports" : null,
+    "customArgs" : null,
+    "customSparkConf" : {
+      "spark.cassandra.connection.host" : "172.31.21.172",
+      "spark.master" : "spark://172.31.21.172:7077",
+      "spark.executor.cores" : "2",
+      "spark.executor.memory" : "4G",
+      "spark.cores.max" : "5",
+      "spark.eventLog.enabled" : "true",
+      "spark.eventLog.dir" : "logs/spark"
+    }
+  },
+  "cells" : [ {
+    "metadata" : { },
+    "cell_type" : "markdown",
+    "source" : "### Setup the SQL Context and necessary imports"
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val sqlContext = new org.apache.spark.sql.SQLContext(sparkContext)\nimport sqlContext.implicits._\nimport org.apache.spark.sql.functions._\nimport com.datastax.spark.connector.cql.CassandraConnector\n\nimport com.datastax.spark.connector._\nimport com.datastax.spark.connector.streaming._\n\nimport java.util.concurrent.atomic.AtomicInteger\n\nimport com.google.gson.Gson\nimport org.apache.spark.streaming.twitter.TwitterUtils\nimport org.apache.spark.streaming.{Seconds, StreamingContext}\nimport org.apache.spark.{SparkConf, SparkContext}\n\nimport com.datastax.spark.connector._\n",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "var partNum = 0\nvar gson = new Gson()\nvar tweetId:AtomicInteger = new AtomicInteger()\nvar numTweetsCollected = 0L\nvar numTweetsToCollect = 100L",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "def $(s:String) = sys.env(s)\nSystem.setProperty(\"twitter4j.oauth.consumerKey\", $(\"TWITTER_CONSUMER_KEY\"))\nSystem.setProperty(\"twitter4j.oauth.consumerSecret\", $(\"TWITTER_CONSUMER_SECRET\"))\nSystem.setProperty(\"twitter4j.oauth.accessToken\", $(\"TWITTER_ACCESS_TOKEN\"))\nSystem.setProperty(\"twitter4j.oauth.accessTokenSecret\", $(\"TWITTER_ACCESS_TOKEN_SECRET\"))\n\"twitter settings done!\"",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val filters = Array(\"spark\", \"scala\", \"music\")\nval ssc = new StreamingContext(sparkContext, Seconds(2))\nval twitterStream = TwitterUtils.createStream(ssc, None)",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "twitterStream.foreachRDD((rdd, time) => {\n      val count = rdd.count()\n      println(s\"count = $count\")\n      if (count > 0) {\n        val tweetPair = rdd.map(tweet => (tweet.getId,tweet.getText))\n        tweetPair.saveToCassandra(\"tweet_db\", \"raw_tweets\", SomeColumns(\"tweet_id\", \"raw_tweet\"))\n        numTweetsCollected += count\n        if (numTweetsCollected > numTweetsToCollect) {\n          ssc.stop()\n        }\n      }\n    })",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val result = ul(10)",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import StreamingContext._\nval hashTags = twitterStream.flatMap(status => status.getText.split(\" \").filter(_.startsWith(\"#\")))\n\nval topCounts60 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(60))\n                          .map{case (topic, count) => (count, topic)}\n                          .transform(_.sortByKey(false))\n\n// Print popular hashtags\ntopCounts60.foreachRDD(rdd => {\n  val topList = rdd.take(10).toList\n  val r = topList.map{case (count, tag) => s\"$tag: $count\"}\n  result(r)\n})",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "ssc.start()",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "//ssc.stop()",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "",
+    "outputs" : [ ]
+  } ],
+  "nbformat" : 4
+}
