@@ -1,3 +1,8 @@
+This is copied from the databricks twitter classifier:
+https://github.com/databricks/reference-apps/tree/master/twitter_classifier
+
+It has been modified to save the tweets and vector in Cassandra instead of a file system.  It also contains Spark Notebooks for the collect, train and predict steps.
+
 # Twitter Streaming Language Classifier
 
 In this reference application, we show how you can use Apache Spark for training a language classifier - replacing a whole suite of tools you may be currently using.
