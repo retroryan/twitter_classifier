@@ -36,7 +36,18 @@
     },
     "cell_type" : "code",
     "source" : "val sqlContext = new org.apache.spark.sql.SQLContext(sparkContext)\nimport sqlContext.implicits._\nimport org.apache.spark.sql.functions._\nimport com.datastax.spark.connector.cql.CassandraConnector\n\nimport com.datastax.spark.connector._\nimport com.datastax.spark.connector.streaming._\n\nimport java.util.concurrent.atomic.AtomicInteger\n\nimport com.google.gson.Gson\nimport org.apache.spark.streaming.twitter.TwitterUtils\nimport org.apache.spark.streaming.{Seconds, StreamingContext}\nimport org.apache.spark.{SparkConf, SparkContext}\n\nimport com.datastax.spark.connector._\n",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "sqlContext: org.apache.spark.sql.SQLContext = org.apache.spark.sql.SQLContext@3453bfdf\nimport sqlContext.implicits._\nimport org.apache.spark.sql.functions._\nimport com.datastax.spark.connector.cql.CassandraConnector\nimport com.datastax.spark.connector._\nimport com.datastax.spark.connector.streaming._\nimport java.util.concurrent.atomic.AtomicInteger\nimport com.google.gson.Gson\nimport org.apache.spark.streaming.twitter.TwitterUtils\nimport org.apache.spark.streaming.{Seconds, StreamingContext}\nimport org.apache.spark.{SparkConf, SparkContext}\nimport com.datastax.spark.connector._\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 1
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -45,7 +56,18 @@
     },
     "cell_type" : "code",
     "source" : "var partNum = 0\nvar gson = new Gson()\nvar tweetId:AtomicInteger = new AtomicInteger()\nvar numTweetsCollected = 0L\nvar numTweetsToCollect = 100L",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "partNum: Int = 0\ngson: com.google.gson.Gson = {serializeNulls:falsefactories:[Factory[typeHierarchy=com.google.gson.JsonElement,adapter=com.google.gson.internal.bind.TypeAdapters$25@56bc9261], com.google.gson.internal.bind.ObjectTypeAdapter$1@6366aafa, com.google.gson.internal.Excluder@7888ce1b, Factory[type=java.lang.String,adapter=com.google.gson.internal.bind.TypeAdapters$13@13a5fd0e], Factory[type=java.lang.Integer+int,adapter=com.google.gson.internal.bind.TypeAdapters$7@21b85a81], Factory[type=java.lang.Boolean+boolean,adapter=com.google.gson.internal.bind.TypeAdapters$3@77df0536], Factory[type=java.lang.Byte+byte,adapter=com.google.gson.internal.bind.TypeAdapters$5@4999f5c0], Factory[type=java.lang.Short+short,adapter=com.google.gson.internal.bind.TypeAdapters$6@75683c70], Factory..."
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "100"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 2
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -54,7 +76,18 @@
     },
     "cell_type" : "code",
     "source" : "def $(s:String) = sys.env(s)\nSystem.setProperty(\"twitter4j.oauth.consumerKey\", $(\"TWITTER_CONSUMER_KEY\"))\nSystem.setProperty(\"twitter4j.oauth.consumerSecret\", $(\"TWITTER_CONSUMER_SECRET\"))\nSystem.setProperty(\"twitter4j.oauth.accessToken\", $(\"TWITTER_ACCESS_TOKEN\"))\nSystem.setProperty(\"twitter4j.oauth.accessTokenSecret\", $(\"TWITTER_ACCESS_TOKEN_SECRET\"))\n\"twitter settings done!\"",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "$: (s: String)String\nres2: String = twitter settings done!\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "twitter settings done!"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 3
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -63,7 +96,18 @@
     },
     "cell_type" : "code",
     "source" : "val filters = Array(\"spark\", \"scala\", \"music\")\nval ssc = new StreamingContext(sparkContext, Seconds(2))\nval twitterStream = TwitterUtils.createStream(ssc, None)",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "filters: Array[String] = Array(spark, scala, music)\nssc: org.apache.spark.streaming.StreamingContext = org.apache.spark.streaming.StreamingContext@53d0a540\ntwitterStream: org.apache.spark.streaming.dstream.ReceiverInputDStream[twitter4j.Status] = org.apache.spark.streaming.twitter.TwitterInputDStream@50ab14ac\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "org.apache.spark.streaming.twitter.TwitterInputDStream@50ab14ac"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 4
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -71,8 +115,15 @@
       "collapsed" : false
     },
     "cell_type" : "code",
-    "source" : "twitterStream.foreachRDD((rdd, time) => {\n      val count = rdd.count()\n      println(s\"count = $count\")\n      if (count > 0) {\n        val tweetPair = rdd.map(tweet => (tweet.getId,tweet.getText))\n        tweetPair.saveToCassandra(\"tweet_db\", \"raw_tweets\", SomeColumns(\"tweet_id\", \"raw_tweet\"))\n        numTweetsCollected += count\n        if (numTweetsCollected > numTweetsToCollect) {\n          ssc.stop()\n        }\n      }\n    })",
-    "outputs" : [ ]
+    "source" : "twitterStream.foreachRDD((rdd, time) => {\n      val count = rdd.count()\n      println(s\"count = $count\")\n      if (count > 0) {\n        val tweetPair = rdd.map(tweet => (tweet.getId,tweet.getText))\n        tweetPair.saveToCassandra(\"tweet_db\", \"raw_tweets\", SomeColumns(\"tweet_id\", \"raw_tweet\"))\n        numTweetsCollected += count\n        //if (numTweetsCollected > numTweetsToCollect) {\n        //  ssc.stop()\n        //}\n      }\n    })",
+    "outputs" : [ {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 5
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -81,7 +132,18 @@
     },
     "cell_type" : "code",
     "source" : "val result = ul(10)",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "result: notebook.front.DataConnectedWidget[String]{implicit val singleCodec: notebook.Codec[play.api.libs.json.JsValue,String]; def data: Seq[String]; def data_=(x$1: Seq[String]): Unit; lazy val toHtml: scala.xml.Elem; def append(s: String): Unit; def appendAll(s: Seq[String]): Unit} = <anon$1 widget>\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : "<ul data-bind=\"foreach: value\">\n      <li data-bind=\"text: $data\"></li><script data-this=\"{&quot;valueId&quot;:&quot;anon01b39d3261dc9feb968af0a6a4050de5&quot;}\" type=\"text/x-scoped-javascript\">/*<![CDATA[*/\nreq(\n['observable', 'knockout'],\nfunction (O, ko) {\n  ko.applyBindings({\n      value: O.makeObservable(valueId)\n    },\n    this\n  );\n});\n          /*]]>*/</script></ul>"
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 6
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -90,7 +152,18 @@
     },
     "cell_type" : "code",
     "source" : "import StreamingContext._\nval hashTags = twitterStream.flatMap(status => status.getText.split(\" \").filter(_.startsWith(\"#\")))\n\nval topCounts60 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(60))\n                          .map{case (topic, count) => (count, topic)}\n                          .transform(_.sortByKey(false))\n\n// Print popular hashtags\ntopCounts60.foreachRDD(rdd => {\n  val topList = rdd.take(10).toList\n  val r = topList.map{case (count, tag) => s\"$tag: $count\"}\n  result(r)\n})",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "name" : "stdout",
+      "output_type" : "stream",
+      "text" : "import StreamingContext._\nhashTags: org.apache.spark.streaming.dstream.DStream[String] = org.apache.spark.streaming.dstream.FlatMappedDStream@46de9d08\ntopCounts60: org.apache.spark.streaming.dstream.DStream[(Int, String)] = org.apache.spark.streaming.dstream.TransformedDStream@28674995\n"
+    }, {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 7
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -99,7 +172,14 @@
     },
     "cell_type" : "code",
     "source" : "ssc.start()",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "metadata" : { },
+      "data" : {
+        "text/html" : ""
+      },
+      "output_type" : "execute_result",
+      "execution_count" : 8
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -108,7 +188,11 @@
     },
     "cell_type" : "code",
     "source" : "//ssc.stop()",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "ename" : "Error",
+      "output_type" : "error",
+      "traceback" : [ "Incomplete (hint: check the parenthesis)" ]
+    } ]
   }, {
     "metadata" : {
       "trusted" : true,
@@ -117,7 +201,11 @@
     },
     "cell_type" : "code",
     "source" : "",
-    "outputs" : [ ]
+    "outputs" : [ {
+      "ename" : "Error",
+      "output_type" : "error",
+      "traceback" : [ "Incomplete (hint: check the parenthesis)" ]
+    } ]
   } ],
   "nbformat" : 4
 }
